@@ -1,30 +1,64 @@
-import React from 'react'
-import {Avatar, Col, Dropdown, Layout, Menu, type MenuProps, message, Row, Space, theme, Typography} from 'antd';
+import React, {useState} from 'react'
+import {Avatar, Col, Dropdown, Layout, Menu, type MenuProps, Row, Space, theme, Typography} from 'antd';
 import {Outlet, useNavigate} from 'react-router-dom'
 import './Layouts.less'
 import {
   ApartmentOutlined,
   ApiOutlined,
-  AppstoreOutlined,
-  CloudOutlined, CopyrightOutlined,
+  CloudOutlined,
+  CopyrightOutlined,
   DashboardOutlined,
-  DatabaseOutlined, DownOutlined,
-  FireOutlined,
-  FundProjectionScreenOutlined,
+  DatabaseOutlined,
+  DownOutlined,
   HomeOutlined,
-  NodeIndexOutlined, ProfileOutlined,
-  ProjectOutlined, SearchOutlined,
-  SettingOutlined, ShopOutlined, ShoppingCartOutlined,
-  TeamOutlined, ToolOutlined, TrademarkOutlined,
+  NodeIndexOutlined,
+  ProfileOutlined,
+  SearchOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  ToolOutlined,
   UserOutlined
 } from '@ant-design/icons'
+import {QueryTenantsReq} from "../types/tenant/req/QueryTenantsReq";
+import {queryTenantsApi} from "../services/tenant/TenantService";
+import {TenantRow} from "../types/tenant/info/TenantRow";
 
 function Layouts() {
   const navigate = useNavigate()
 
+  const [tenant, setTenant] = useState(localStorage.getItem("TenantName"));
+  const [tenants, setTenants] = useState<TenantRow[]>([]);
+
   const {Header, Content, Sider} = Layout
 
-  const memberMenus: MenuProps['items'] = [
+  const genMenus = () => {
+
+    if (localStorage.getItem("Role") == 'ROLE_SYS_ADMIN') {
+      return adminMenus;
+    }
+    if (localStorage.getItem("Role") == 'ROLE_TENANT_MEMBER') {
+      return memberMenus;
+    }
+    memberMenus.push({
+      key: 14,
+      label: '租户成员',
+      icon: <TeamOutlined/>,
+      onClick: () => {
+        navigate('/tenant_user')
+      }
+    })
+    memberMenus.push({
+      key: 12,
+      label: '后台设置',
+      icon: <ToolOutlined/>,
+      onClick: () => {
+        navigate('/auth')
+      }
+    })
+    return memberMenus;
+  };
+
+  const memberMenus = [
     {
       key: 1,
       label: '首页',
@@ -65,30 +99,30 @@ function Layouts() {
         navigate('/auth')
       }
     },
-    {
-      key: 22,
-      label: '模型仓库',
-      icon:<ShopOutlined />,
-      onClick: () => {
-        navigate('/auth')
-      }
-    },
-    {
-      key: 6,
-      label: '数据建模',
-      icon: <AppstoreOutlined/>,
-      onClick: () => {
-        navigate('/auth')
-      }
-    },
-    {
-      key: 8,
-      label: 'BI酷屏',
-      icon: <FundProjectionScreenOutlined/>,
-      onClick: () => {
-        navigate('/auth')
-      }
-    },
+    // {
+    //   key: 22,
+    //   label: '模型仓库',
+    //   icon:<ShopOutlined />,
+    //   onClick: () => {
+    //     navigate('/auth')
+    //   }
+    // },
+    // {
+    //   key: 6,
+    //   label: '数据建模',
+    //   icon: <AppstoreOutlined/>,
+    //   onClick: () => {
+    //     navigate('/auth')
+    //   }
+    // },
+    // {
+    //   key: 8,
+    //   label: 'BI酷屏',
+    //   icon: <FundProjectionScreenOutlined/>,
+    //   onClick: () => {
+    //     navigate('/auth')
+    //   }
+    // },
     {
       key: 9,
       label: '数据资产',
@@ -100,7 +134,7 @@ function Layouts() {
     {
       key: 21,
       label: '数据地图',
-      icon: <SearchOutlined />,
+      icon: <SearchOutlined/>,
       onClick: () => {
         navigate('/auth')
       }
@@ -113,37 +147,21 @@ function Layouts() {
         navigate('/auth')
       }
     },
-    {
-      key: 11,
-      label: 'AI计算',
-      icon: <FireOutlined/>,
-      onClick: () => {
-        navigate('/auth')
-      }
-    },
-    {
-      key: 14,
-      label: '租户成员',
-      icon: <TeamOutlined/>,
-      onClick: () => {
-        navigate('/tenant_user')
-      }
-    },
-    {
-      key: 12,
-      label: '后台设置',
-      icon: <ToolOutlined />,
-      onClick: () => {
-        navigate('/auth')
-      }
-    }
+    // {
+    //   key: 11,
+    //   label: 'AI计算',
+    //   icon: <FireOutlined/>,
+    //   onClick: () => {
+    //     navigate('/auth')
+    //   }
+    // },
   ];
 
   const adminMenus: MenuProps['items'] = [
     {
       key: 18,
       label: '用户中心',
-      icon: <UserOutlined />,
+      icon: <UserOutlined/>,
       onClick: () => {
         navigate('/user')
       },
@@ -151,7 +169,7 @@ function Layouts() {
     {
       key: 17,
       label: '租户列表',
-      icon: <ProfileOutlined />,
+      icon: <ProfileOutlined/>,
       onClick: () => {
         navigate('/tenant')
       }
@@ -167,7 +185,7 @@ function Layouts() {
     {
       key: 19,
       label: '证书安装',
-      icon: <CopyrightOutlined />,
+      icon: <CopyrightOutlined/>,
       onClick: () => {
         navigate('/license')
       }
@@ -177,12 +195,12 @@ function Layouts() {
       label: '系统设置',
       icon: <SettingOutlined/>,
       onClick: () => {
-        navigate('/auth')
+        navigate('/setting')
       }
     }
   ];
 
-  const items = [
+  const items2: MenuProps['items'] = [
     {
       key: '1',
       label: '设置',
@@ -198,9 +216,37 @@ function Layouts() {
     },
   ];
 
+  const items: MenuProps['items'] =
+    tenants.map((row) => {
+      const rowData = {
+        key: "", label: "", onClick: () => {
+        }
+      }
+      rowData.key = row.id as string;
+      rowData.label = row.name as string
+      rowData.onClick = () => {
+        console.log(row)
+        setTenant(row.name as string);
+        localStorage.setItem("Tenant", row.id as string);
+      }
+      return rowData
+    });
+
   const {
     token: {colorBgContainer, colorPrimary}
   } = theme.useToken()
+
+  const queryTenantsReq: QueryTenantsReq = {
+    page: 1,
+    pageSize: 999,
+    searchKeyWord: ""
+  }
+
+  const fetchTenant = () => {
+    queryTenantsApi(queryTenantsReq).then(function (response) {
+      setTenants(response.content)
+    })
+  };
 
   return (
     <>
@@ -216,15 +262,23 @@ function Layouts() {
                     </div>
                   </Col>
                   <Col style={{minWidth: '150px', display: 'flex', alignItems: 'center'}}>
-                    <Dropdown.Button
-                      icon={<DownOutlined/>}
-                      menu={{items}}
-                      onClick={() => {
-
+                    <Dropdown
+                      onOpenChange={() => {
+                        fetchTenant();
+                      }}
+                      menu={{
+                        items,
+                        selectable: true,
+                        defaultSelectedKeys: [tenant as string],
                       }}
                     >
-                      测试租户
-                    </Dropdown.Button>
+                      <Typography.Link>
+                        <Space style={{color: colorPrimary}}>
+                          {tenant}
+                          <DownOutlined/>
+                        </Space>
+                      </Typography.Link>
+                    </Dropdown>
                   </Col>
                 </Space>
               </Row>
@@ -242,7 +296,7 @@ function Layouts() {
                     </a>
                   </Col>
                   <Col style={{minWidth: '40px'}}>
-                    <Dropdown menu={{items}} placement="bottomRight" arrow>
+                    <Dropdown menu={{items: items2}} placement="bottomRight" arrow>
                       <Avatar style={{backgroundColor: '#e25a1b', verticalAlign: 'middle'}} size="large" gap={4}>
                         {localStorage.getItem('Username')}
                       </Avatar>
@@ -256,7 +310,7 @@ function Layouts() {
         <Layout>
           <Sider width={200} theme={"light"}>
             <Menu className={'sy-sider'} defaultSelectedKeys={['1']}
-                  items={localStorage.getItem("Role") == 'ROLE_SYS_ADMIN' ? adminMenus : memberMenus} mode="inline"
+                  items={genMenus()} mode="inline"
                   style={{overflowY: 'scroll', maxHeight: '90vh', height: '90vh'}}/>
             {/*<div style={{*/}
             {/*  position: 'absolute', bottom: 10, textAlign: 'center', width: '100%', color: 'darkgrey',*/}

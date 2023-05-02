@@ -1,5 +1,6 @@
 package com.isxcode.star.backend.module.user.service;
 
+import com.isxcode.star.api.constants.Roles;
 import com.isxcode.star.api.constants.UserStatus;
 import com.isxcode.star.api.exception.SparkYunException;
 import com.isxcode.star.api.pojos.user.req.UsrAddUserReq;
@@ -12,6 +13,7 @@ import com.isxcode.star.api.pojos.user.res.UsrQueryAllEnableUsersRes;
 import com.isxcode.star.api.pojos.user.res.UsrQueryAllUsersRes;
 import com.isxcode.star.api.properties.SparkYunProperties;
 import com.isxcode.star.api.utils.JwtUtils;
+import com.isxcode.star.backend.module.tenant.entity.TenantEntity;
 import com.isxcode.star.backend.module.tenant.repository.TenantRepository;
 import com.isxcode.star.backend.module.tenant.user.entity.TenantUserEntity;
 import com.isxcode.star.backend.module.tenant.user.repository.TenantUserRepository;
@@ -69,11 +71,25 @@ public class UserBizService {
       throw new SparkYunException("账号或者密码不正确");
     }
 
+    // 获取最近一次租户信息
+    if (Strings.isEmpty(userEntity.getCurrentTenantId())) {
+      throw new SparkYunException("申请管理员，添加到租户");
+    }
+    Optional<TenantEntity> tenantEntityOptional = tenantRepository.findById(userEntity.getCurrentTenantId());
+
+    // 如果不是系统管理员，返回用户在租户中的角色
+    String roleCode = userEntity.getRoleCode();
+    if (!Roles.SYS_ADMIN.equals(userEntity.getRoleCode())) {
+      Optional<TenantUserEntity> tenantUserEntityOptional = tenantUserRepository.findByTenantIdAndUserId(tenantEntityOptional.get().getId(), userEntity.getId());
+      if (tenantUserEntityOptional.isPresent()) {
+        roleCode = tenantUserEntityOptional.get().getRoleCode();
+      }
+    }
+
     // 生成token并返回
     String jwtToken = JwtUtils.encrypt(sparkYunProperties.getAesSlat(), userEntity.getId(), sparkYunProperties.getJwtKey(), sparkYunProperties.getExpirationMin());
-    return new UsrLoginRes(userEntity.getUsername(), jwtToken, userEntity.getCurrentTenantId(), userEntity.getRoleCode());
+    return new UsrLoginRes(userEntity.getUsername(), jwtToken, userEntity.getCurrentTenantId(), tenantEntityOptional.get().getName(), roleCode);
   }
-
   public void logout() {
 
     System.out.println("用户退出登录");
