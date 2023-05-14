@@ -32,7 +32,7 @@ create table if not exists SY_WORK_INSTANCE
   instance_type           varchar(200) comment '实例类型',
   status                  varchar(200) comment '实例状态',
   plan_start_date_time    datetime comment '计划开始时间',
-  next_start_date_time    datetime comment '下一次开始时间',
+  next_plan_date_time    datetime comment '下一次开始时间',
   exec_start_date_time    datetime comment '执行开始时间',
   exec_end_date_time      datetime comment '执行结束时间',
   submit_log              varchar(2000) comment '提交日志',
@@ -105,3 +105,8 @@ create table if not exists SY_FORM_COMPONENT
   deleted                 int default 0 not null comment '逻辑删除',
   tenant_id               varchar(200)  not null comment '租户id'
 );
+
+-- 添加测试连接日志
+alter table SY_DATASOURCE
+  add connect_log varchar(200) null comment '测试连接日志' after db_type;
+

@@ -7,6 +7,7 @@ import { type WorkInfo } from '../../types/woks/info/WorkInfo'
 import { type RunWorkRes } from '../../types/woks/res/RunWorkRes'
 import {
   configWorkApi,
+  getSubmitLogApi,
   getWorkApi,
   getWorkDataApi,
   getWorkLogApi,
@@ -25,10 +26,36 @@ function WorkPage() {
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [work, setWork] = useState<WorkInfo>()
   const [result, setResult] = useState<RunWorkRes>()
+  const [instanceId, setInstanceId] = useState('')
+  const [logs, setLogs] = useState('')
+  const [pollingStarted, setPollingStarted] = useState(false)
+
+  const startPolling = () => {
+    setPollingStarted(true)
+  }
 
   useEffect(() => {
     getWork()
   }, [])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      getSubmitLogApi(instanceId).then(function (response) {
+        const successLog = response.status === 'SUCCESS' || response.status === 'FAIL'
+        setLogs(response.log as string)
+        if (successLog) {
+          setPollingStarted(false)
+        }
+      })
+    }
+
+    if (pollingStarted) {
+      const pollingInterval = setInterval(fetchData, 2000)
+      return () => {
+        clearInterval(pollingInterval)
+      }
+    }
+  }, [pollingStarted])
 
   const getWork = () => {
     getWorkApi(workId as string).then(function (response) {
@@ -77,7 +104,8 @@ function WorkPage() {
 
   const runWork = () => {
     runWorkApi(workId as string).then((r) => {
-      setResult(r)
+      setInstanceId(r.instanceId as string)
+      startPolling()
     })
   }
 
@@ -127,7 +155,7 @@ function WorkPage() {
     items.push({
       key: 'SUBMIT_LOG',
       label: '提交日志',
-      children: <pre style={{ overflowY: 'scroll', maxHeight: '200px', whiteSpace: 'pre-wrap' }}>{result?.log}</pre>
+      children: <pre style={{ overflowY: 'scroll', maxHeight: '200px', whiteSpace: 'pre-wrap' }}>{logs}</pre>
     })
     if (work?.workType === 'QUERY_JDBC' || work?.workType === 'SPARK_SQL') {
       items.push({

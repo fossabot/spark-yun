@@ -1,18 +1,25 @@
 import React, { useEffect, useState } from 'react'
-import { Button, Col, Input, Row, Space, Table, Tag, Tooltip } from 'antd'
+import { Button, Col, Input, Modal, Row, Space, Table, Tag, Tooltip } from 'antd'
 import { type ColumnsType } from 'antd/es/table'
 import { DatasourceModal } from '../../modals/datasource/DatasourceModal'
 import './DatasourcePage.less'
 import { type DatasourceRow } from '../../types/datasource/info/DatasourceRow'
 import { type BasePagination, defaultPagination } from '../../types/base/BasePagination'
 import { type QueryDatasourceReq } from '../../types/datasource/req/QueryDatasourceReq'
-import { delDatasourceApi, queryDatasourceApi, testDatasourceApi } from '../../services/datasource/DatasourceService'
+import {
+  delDatasourceApi,
+  getConnectLogApi,
+  queryDatasourceApi,
+  testDatasourceApi
+} from '../../services/datasource/DatasourceService'
 
 function DatasourcePage() {
   const [datasources, setDatasources] = useState<DatasourceRow[]>([])
   const [datasource, setDatasource] = useState<DatasourceRow>()
   const [pagination, setPagination] = useState<BasePagination>(defaultPagination)
   const [isModalVisible, setIsModalVisible] = useState(false)
+  const [connectLog, setConnectLog] = useState('')
+  const [isLogModalVisible, setIsLogModalVisible] = useState(false)
 
   useEffect(() => {
     fetchDatasources()
@@ -51,6 +58,12 @@ function DatasourcePage() {
     })
   }
 
+  const getConnectLog = (datasourceId: string) => {
+    getConnectLogApi(datasourceId).then(function (res) {
+      setConnectLog(res.connectLog)
+    })
+  }
+
   const handleSearch = () => {
     setPagination((prevPagination) => ({
       ...prevPagination,
@@ -64,17 +77,17 @@ function DatasourcePage() {
       title: '数据源名称',
       dataIndex: 'name',
       key: 'name',
-      width: 130,
-      render: (text, record) => (
-        <a
-          onClick={() => {
-            setDatasource(record)
-            setIsModalVisible(true)
-          }}
-          className={'sy-table-a'}>
-          {text}
-        </a>
-      )
+      width: 130
+      // render: (text, record) => (
+      //   <a
+      //     onClick={() => {
+      //       setDatasource(record)
+      //       setIsModalVisible(true)
+      //     }}
+      //     className={'sy-table-a'}>
+      //     {text}
+      //   </a>
+      // )
     },
     {
       title: '类型',
@@ -136,14 +149,14 @@ function DatasourcePage() {
       width: 250,
       render: (_, record) => (
         <Space size="middle">
-          {/* <a */}
-          {/*  className={'sy-table-a'} */}
-          {/*  onClick={() => { */}
-          {/*    setDatasource(record) */}
-          {/*    setIsModalVisible(true) */}
-          {/*  }}> */}
-          {/*  编辑 */}
-          {/* </a> */}
+          <a
+            className={'sy-table-a'}
+            onClick={() => {
+              setDatasource(record)
+              setIsModalVisible(true)
+            }}>
+            编辑
+          </a>
           <a
             className={'sy-table-a'}
             onClick={() => {
@@ -161,7 +174,8 @@ function DatasourcePage() {
           <a
             className={'sy-table-a'}
             onClick={() => {
-              delDatasource(record.id)
+              getConnectLog(record.id as string)
+              setIsLogModalVisible(true)
             }}>
             日志
           </a>
@@ -209,6 +223,18 @@ function DatasourcePage() {
         handleOk={handleOk}
         isModalVisible={isModalVisible}
       />
+
+      <Modal
+        title="连接日志"
+        open={isLogModalVisible}
+        onOk={() => {
+          setIsLogModalVisible(false)
+        }}
+        onCancel={() => {
+          setIsLogModalVisible(false)
+        }}>
+        <p>{connectLog}</p>
+      </Modal>
     </div>
   )
 }

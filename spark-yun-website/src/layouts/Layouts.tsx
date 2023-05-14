@@ -100,15 +100,15 @@ function Layouts() {
       onClick: () => {
         navigate('/workflow')
       }
+    },
+    {
+      key: 7,
+      label: '调度历史',
+      icon: <ApartmentOutlined />,
+      onClick: () => {
+        navigate('/instance')
+      }
     }
-    // {
-    //   key: 7,
-    //   label: '调度历史',
-    //   icon: <ApartmentOutlined />,
-    //   onClick: () => {
-    //     navigate('/auth')
-    //   }
-    // },
     // {
     //   key: 22,
     //   label: '模型仓库',
