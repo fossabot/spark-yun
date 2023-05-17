@@ -43,3 +43,5 @@ spark-yun:
   admin-passwd: ispong123
   resources-path: /Users/ispong/Data/resources
   log-advice: true
+  agent-bin-dir: /Users/ispong/Isxcode/spark-yun/spark-yun-dist/src/main/bin
+  agent-tar-gz-dir: /Users/ispong/Isxcode/spark-yun/spark-yun-dist/build/distributions

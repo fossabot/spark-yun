@@ -2,12 +2,11 @@ package com.isxcode.star.backend.module.work.service;
 
 import com.alibaba.fastjson.JSON;
 import com.isxcode.star.api.constants.CodeConstants;
-import com.isxcode.star.api.constants.datasource.DatasourceType;
 import com.isxcode.star.api.constants.EngineNodeStatus;
 import com.isxcode.star.api.constants.WorkStatus;
 import com.isxcode.star.api.constants.WorkType;
 import com.isxcode.star.api.constants.work.instance.InstanceType;
-import com.isxcode.star.api.pojos.plugin.req.PluginReq;
+import com.isxcode.star.api.exception.SparkYunException;
 import com.isxcode.star.api.pojos.work.req.WokAddWorkReq;
 import com.isxcode.star.api.pojos.work.req.WokGetDataReq;
 import com.isxcode.star.api.pojos.work.req.WokGetStatusReq;
@@ -22,17 +21,16 @@ import com.isxcode.star.api.pojos.work.res.WokGetWorkLogRes;
 import com.isxcode.star.api.pojos.work.res.WokGetWorkRes;
 import com.isxcode.star.api.pojos.work.res.WokQueryWorkRes;
 import com.isxcode.star.api.pojos.work.res.WokRunWorkRes;
-import com.isxcode.star.api.pojos.yun.agent.req.YagExecuteWorkReq;
 import com.isxcode.star.api.pojos.yun.agent.res.YagGetLogRes;
 import com.isxcode.star.api.properties.SparkYunProperties;
-import com.isxcode.star.api.utils.AesUtils;
+import com.isxcode.star.api.response.BaseResponse;
 import com.isxcode.star.api.utils.HttpUtils;
 import com.isxcode.star.backend.module.cluster.entity.ClusterEntity;
+import com.isxcode.star.backend.module.cluster.node.entity.ClusterNodeEntity;
+import com.isxcode.star.backend.module.cluster.node.repository.ClusterNodeRepository;
 import com.isxcode.star.backend.module.cluster.repository.ClusterRepository;
 import com.isxcode.star.backend.module.datasource.entity.DatasourceEntity;
 import com.isxcode.star.backend.module.datasource.repository.DatasourceRepository;
-import com.isxcode.star.backend.module.cluster.node.entity.ClusterNodeEntity;
-import com.isxcode.star.backend.module.cluster.node.repository.ClusterNodeRepository;
 import com.isxcode.star.backend.module.datasource.service.DatasourceBizService;
 import com.isxcode.star.backend.module.work.config.entity.WorkConfigEntity;
 import com.isxcode.star.backend.module.work.config.repository.WorkConfigRepository;
@@ -41,34 +39,25 @@ import com.isxcode.star.backend.module.work.instance.entity.WorkInstanceEntity;
 import com.isxcode.star.backend.module.work.instance.repository.WorkInstanceRepository;
 import com.isxcode.star.backend.module.work.mapper.WorkMapper;
 import com.isxcode.star.backend.module.work.repository.WorkRepository;
-import com.isxcode.star.api.exception.SparkYunException;
-import com.isxcode.star.api.response.BaseResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
-import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static com.isxcode.star.backend.config.WebSecurityConfig.TENANT_ID;
 import static com.isxcode.star.backend.config.WebSecurityConfig.USER_ID;
-import static java.sql.DriverManager.getConnection;
 
 @Service
 @RequiredArgsConstructor
@@ -77,6 +66,8 @@ import static java.sql.DriverManager.getConnection;
 public class WorkBizService {
 
   private final RunExecuteSqlService runExecuteSqlService;
+
+  private final RunSparkSqlService runSparkSqlService;
 
   private final WorkRepository workRepository;
 
@@ -91,8 +82,6 @@ public class WorkBizService {
   private final ClusterNodeRepository engineNodeRepository;
 
   private final DatasourceBizService datasourceBizService;
-
-  private final SparkYunProperties sparkYunProperties;
 
   private final WorkInstanceRepository workInstanceRepository;
 
@@ -176,22 +165,31 @@ public class WorkBizService {
         querySql(work.getConfigId());
         return new WokRunWorkRes();
       case WorkType.QUERY_SPARK_SQL:
-        sparkSql(work.getConfigId());
-        return new WokRunWorkRes();
+        runSparkSqlService.run(workConfig.getClusterId(), workConfig.getSqlScript(), workInstanceEntity.getId(), TENANT_ID.get(), USER_ID.get());
+        return WokRunWorkRes.builder().instanceId(workInstanceEntity.getId()).build();
       default:
         throw new SparkYunException("该作业类型暂不支持");
     }
   }
 
-  public WokGetDataRes getData(WokGetDataReq wokGetDataReq) {
+  public WokGetDataRes getData(String instanceId) {
 
-    if (Strings.isEmpty(wokGetDataReq.getApplicationId())) {
+    // 获取实例
+    Optional<WorkInstanceEntity> instanceEntityOptional = workInstanceRepository.findById(instanceId);
+    if (!instanceEntityOptional.isPresent()) {
+      throw new SparkYunException("实例不存在");
+    }
+    WorkInstanceEntity workInstanceEntity = instanceEntityOptional.get();
+
+    // 获取sparkStar返回对象
+    WokRunWorkRes wokRunWorkRes = JSON.parseObject(workInstanceEntity.getSparkStarRes(), WokRunWorkRes.class);
+    if (Strings.isEmpty(wokRunWorkRes.getApplicationId())) {
       return WokGetDataRes.builder().data(new ArrayList<>()).build();
     }
 
-    ClusterNodeEntity engineNode = getEngineNodeByWorkId(wokGetDataReq.getWorkId());
+    ClusterNodeEntity engineNode = getEngineNodeByWorkId(workInstanceEntity.getWorkId());
 
-    String getDataUrl = "http://" + engineNode.getHost() + ":" + engineNode.getAgentPort() + "/yag/getData?applicationId=" + wokGetDataReq.getApplicationId();
+    String getDataUrl = "http://" + engineNode.getHost() + ":" + engineNode.getAgentPort() + "/yag/getData?applicationId=" + wokRunWorkRes.getApplicationId();
     BaseResponse<?> baseResponse = HttpUtils.doGet(getDataUrl, BaseResponse.class);
 
     if (!CodeConstants.SUCCESS_CODE.equals(baseResponse.getCode())) {
@@ -200,15 +198,23 @@ public class WorkBizService {
     return JSON.parseObject(JSON.toJSONString(baseResponse.getData()), WokGetDataRes.class);
   }
 
-  public WokGetStatusRes getStatus(WokGetStatusReq wokGetStatusReq) {
+  public WokGetStatusRes getStatus(String instanceId) {
 
-    if (Strings.isEmpty(wokGetStatusReq.getApplicationId())) {
+    Optional<WorkInstanceEntity> workInstanceEntityOptional = workInstanceRepository.findById(instanceId);
+    if (!workInstanceEntityOptional.isPresent()) {
+      throw new SparkYunException("实例暂未生成请稍后再试");
+    }
+    WorkInstanceEntity workInstanceEntity = workInstanceEntityOptional.get();
+
+    WokRunWorkRes wokRunWorkRes = JSON.parseObject(workInstanceEntity.getSparkStarRes(), WokRunWorkRes.class);
+
+    if (Strings.isEmpty(wokRunWorkRes.getApplicationId())) {
       return WokGetStatusRes.builder().yarnApplicationState("NO_RUNNING").build();
     }
 
-    ClusterNodeEntity engineNode = getEngineNodeByWorkId(wokGetStatusReq.getWorkId());
+    ClusterNodeEntity engineNode = getEngineNodeByWorkId(workInstanceEntity.getWorkId());
 
-    String getStatusUrl = "http://" + engineNode.getHost() + ":" + engineNode.getAgentPort() + "/yag/getStatus?applicationId=" + wokGetStatusReq.getApplicationId();
+    String getStatusUrl = "http://" + engineNode.getHost() + ":" + engineNode.getAgentPort() + "/yag/getStatus?applicationId=" + wokRunWorkRes.getApplicationId();
     BaseResponse<?> baseResponse = HttpUtils.doGet(getStatusUrl, BaseResponse.class);
     if (!CodeConstants.SUCCESS_CODE.equals(baseResponse.getCode())) {
       throw new SparkYunException(baseResponse.getCode(), baseResponse.getMsg(), baseResponse.getErr());
@@ -244,15 +250,23 @@ public class WorkBizService {
     return getEngineWork(workConfig.getClusterId());
   }
 
-  public WokGetWorkLogRes getWorkLog(WokGetWorkLogReq wokGetWorkLogReq) {
+  public WokGetWorkLogRes getWorkLog(String instanceId) {
 
-    if (Strings.isEmpty(wokGetWorkLogReq.getApplicationId())) {
+    Optional<WorkInstanceEntity> workInstanceEntityOptional = workInstanceRepository.findById(instanceId);
+    if (!workInstanceEntityOptional.isPresent()) {
+      throw new SparkYunException("实例暂未生成，请稍后再试");
+    }
+    WorkInstanceEntity workInstanceEntity = workInstanceEntityOptional.get();
+
+    WokRunWorkRes wokRunWorkRes = JSON.parseObject(workInstanceEntity.getSparkStarRes(), WokRunWorkRes.class);
+
+    if (Strings.isEmpty(wokRunWorkRes.getApplicationId())) {
       return WokGetWorkLogRes.builder().yarnLog("待运行").build();
     }
 
-    ClusterNodeEntity engineNode = getEngineNodeByWorkId(wokGetWorkLogReq.getWorkId());
+    ClusterNodeEntity engineNode = getEngineNodeByWorkId(workInstanceEntity.getWorkId());
 
-    String getLogUrl = "http://" + engineNode.getHost() + ":" + engineNode.getAgentPort() + "/yag/getLog?applicationId=" + wokGetWorkLogReq.getApplicationId();
+    String getLogUrl = "http://" + engineNode.getHost() + ":" + engineNode.getAgentPort() + "/yag/getLog?applicationId=" + wokRunWorkRes.getApplicationId();
     BaseResponse<?> baseResponse = HttpUtils.doGet(getLogUrl, BaseResponse.class);
     if (!CodeConstants.SUCCESS_CODE.equals(baseResponse.getCode())) {
       throw new SparkYunException(baseResponse.getCode(), baseResponse.getMsg(), baseResponse.getErr());
@@ -382,88 +396,11 @@ public class WorkBizService {
       throw new SparkYunException("计算引擎不存在");
     }
 
-    List<ClusterNodeEntity> allEngineNodes = engineNodeRepository.findAllByClusterIdAndStatus(calculateEngineEntityOptional.get().getId(), EngineNodeStatus.ACTIVE);
+    List<ClusterNodeEntity> allEngineNodes = engineNodeRepository.findAllByClusterIdAndStatus(calculateEngineEntityOptional.get().getId(), EngineNodeStatus.RUNNING);
     if (allEngineNodes.isEmpty()) {
       throw new SparkYunException("计算引擎无可用节点，请换一个计算引擎");
     }
     return allEngineNodes.get(0);
-  }
-
-
-  @Async("sparkYunWorkThreadPool")
-  public WokRunWorkRes sparkSql(String workConfigId) {
-
-    StringBuilder logBuilder = new StringBuilder();
-    String infoHeader = LocalDateTime.now() + " INFO : ";
-    String errorHeader = LocalDateTime.now() + " ERROR : ";
-
-    logBuilder.append(infoHeader + "开始检查作业  \n");
-    Optional<WorkConfigEntity> workConfigEntityOptional = workConfigRepository.findById(workConfigId);
-    if (!workConfigEntityOptional.isPresent()) {
-      logBuilder.append(errorHeader + "检查作业失败 : 作业配置不存在 \n");
-      return WokRunWorkRes.builder().log(logBuilder.toString()).executeStatus("ERROR").build();
-    }
-    WorkConfigEntity workConfig = workConfigEntityOptional.get();
-    logBuilder.append(infoHeader + "检查作业完成  \n");
-
-    logBuilder.append(infoHeader + "开始申请资源  \n");
-    if (Strings.isEmpty(workConfig.getClusterId())) {
-      logBuilder.append(errorHeader + "申请资源失败 : 未配置计算引擎 \n");
-      return WokRunWorkRes.builder().log(logBuilder.toString()).executeStatus("ERROR").build();
-    }
-
-    Optional<ClusterEntity> calculateEngineEntityOptional = calculateEngineRepository.findById(workConfig.getClusterId());
-    if (!calculateEngineEntityOptional.isPresent()) {
-      logBuilder.append(errorHeader + "申请资源失败 : 计算引擎不存在 \n");
-      return WokRunWorkRes.builder().log(logBuilder.toString()).executeStatus("ERROR").build();
-    }
-
-    List<ClusterNodeEntity> allEngineNodes = engineNodeRepository.findAllByClusterIdAndStatus(calculateEngineEntityOptional.get().getId(), EngineNodeStatus.ACTIVE);
-    if (allEngineNodes.isEmpty()) {
-      logBuilder.append(errorHeader + "申请资源失败 : 集群不存在可用节点，请切换一个集群 \n");
-      return WokRunWorkRes.builder().log(logBuilder.toString()).executeStatus("ERROR").build();
-    }
-    ClusterNodeEntity engineNode = allEngineNodes.get(0);
-    logBuilder.append(infoHeader + "申请资源完成，激活节点:【" + engineNode.getName() + "】\n");
-
-    logBuilder.append(infoHeader + "开始构建作业  \n");
-    YagExecuteWorkReq executeReq = new YagExecuteWorkReq();
-    executeReq.setAppName("spark-yun");
-    executeReq.setMainClass("com.isxcode.star.plugin.query.sql.Execute");
-    executeReq.setAppResourcePath(engineNode.getAgentHomePath() + File.separator + "spark-yun-agent" + File.separator + "plugins" + File.separator + "spark-query-sql-plugin.jar");
-    executeReq.setSparkHomePath(engineNode.getAgentHomePath() + File.separator + "spark-yun-agent" + File.separator + "spark-min");
-    executeReq.setAgentLibPath(engineNode.getAgentHomePath() + File.separator + "spark-yun-agent" + File.separator + "lib");
-
-    PluginReq pluginReq = new PluginReq();
-    pluginReq.setSql(workConfig.getSqlScript());
-    pluginReq.setLimit(200);
-    Map<String, String> sparkConfig = new HashMap<>();
-    sparkConfig.put("spark.executor.memory", "1g");
-    sparkConfig.put("spark.driver.memory", "1g");
-    pluginReq.setSparkConfig(sparkConfig);
-    executeReq.setPluginReq(pluginReq);
-    logBuilder.append(infoHeader + "构建作业完，SparkConfig: \n");
-    sparkConfig.forEach((k, v) -> logBuilder.append(infoHeader + k + ":" + v + " \n"));
-
-    try {
-      logBuilder.append(infoHeader + "开始提交作业  \n");
-      String executeWorkUrl = "http://" + engineNode.getHost() + ":" + engineNode.getAgentPort() + "/yag/executeWork";
-      BaseResponse<?> baseResponse = HttpUtils.doPost(executeWorkUrl, executeReq, BaseResponse.class);
-      if (!CodeConstants.SUCCESS_CODE.equals(baseResponse.getCode())) {
-        logBuilder.append(errorHeader + "提交作业失败 : " + baseResponse.getErr() + "\n");
-        return WokRunWorkRes.builder().log(logBuilder.toString()).executeStatus("ERROR").build();
-      }
-      WokRunWorkRes wokRunWorkRes = JSON.parseObject(JSON.toJSONString(baseResponse.getData()), WokRunWorkRes.class);
-      logBuilder.append(infoHeader + "提交作业完成  \n");
-      wokRunWorkRes.setLog(logBuilder.toString());
-      wokRunWorkRes.setExecuteStatus("SUCCESS");
-      return wokRunWorkRes;
-
-    } catch (Exception e) {
-      log.error(e.getMessage());
-      logBuilder.append(errorHeader + "提交作业失败 : " + e.getMessage() + "\n");
-      return WokRunWorkRes.builder().log(logBuilder.toString()).executeStatus("ERROR").build();
-    }
   }
 
   public WokGetSubmitLogRes getSubmitLog(String instanceId) {

@@ -1,20 +1,23 @@
 FROM openjdk:8
 
-VOLUME /spark-yun/resources/
-VOLUME /spark-yun/config/
+VOLUME /etc/spark-yun/conf
+VOLUME /var/lib/spark-yun
 
 ARG ADMIN_PASSWORD='admin123'
+ARG ACTIVE_ENV='demo'
 
-RUN mkdir -p /spark-yun/config
-RUN mkdir -p /spark-yun/resources
+RUN mkdir -p /etc/spark-yun/conf
+RUN mkdir -p /opt/spark-yun
+RUN mkdir -p /var/lib/spark-yun
 
-COPY ./spark-yun-backend/build/libs/spark-yun-backend.jar /spark-yun/app.jar
-COPY ./spark-yun-dist/src/main/conf/application-demo.yml /spark-yun/config/application-demo.yml
-COPY ./spark-yun-dist/build/distributions/spark-yun-agent.tar.gz /spark-yun/spark-yun-agent.tar.gz
-COPY ./spark-yun-dist/src/main/bin /spark-yun/bin
+COPY ./spark-yun-backend/build/libs/spark-yun-backend.jar /opt/spark-yun/zhiqingyun.jar
+COPY ./spark-yun-dist/src/main/conf /etc/spark-yun/
+COPY ./spark-yun-dist/build/distributions/spark-yun-agent.tar.gz /tmp/spark-yun-agent.tar.gz
+COPY ./spark-yun-dist/src/main/bin /tmp/
 
 EXPOSE 8080
 
 ENV ADMIN_PASSWORD=${ADMIN_PASSWORD}
+ENV ACTIVE_ENV=${ACTIVE_ENV}
 
-CMD java -jar /spark-yun/app.jar --spring.profiles.active=demo --spring.config.additional-location=/spark-yun/config/application-demo.yml --spark-yun.admin-passwd=${ADMIN_PASSWORD}
+CMD java -jar /opt/spark-yun/zhiqingyun.jar --spring.profiles.active=${ACTIVE_ENV} --spark-yun.admin-passwd=${ADMIN_PASSWORD} --spring.config.additional-location=/etc/spark-yun/conf/

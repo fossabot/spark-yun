@@ -97,7 +97,7 @@ export const WorkConfigDrawer = (props: { isModalVisible: boolean, handleCancel:
           form={form}>
           {work?.workType === 'SPARK_SQL'
 ? (
-            <Form.Item name="engineId" label="计算引擎" rules={[{ required: true, message: '计算引擎不能为空' }]}>
+            <Form.Item name="clusterId" label="计算引擎" rules={[{ required: true, message: '计算引擎不能为空' }]}>
               <Select placeholder="选择计算引擎" allowClear>
                 {calculates.map((option) => (
                   <Option key={option.id} value={option.id}>

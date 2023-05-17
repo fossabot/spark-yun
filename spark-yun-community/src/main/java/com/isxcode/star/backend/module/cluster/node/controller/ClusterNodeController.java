@@ -4,10 +4,7 @@ import com.isxcode.star.api.constants.ModulePrefix;
 import com.isxcode.star.api.pojos.engine.node.req.EnoAddNodeReq;
 import com.isxcode.star.api.pojos.engine.node.req.EnoQueryNodeReq;
 import com.isxcode.star.api.pojos.engine.node.req.EnoUpdateNodeReq;
-import com.isxcode.star.api.pojos.engine.node.res.EnoCheckAgentRes;
-import com.isxcode.star.api.pojos.engine.node.res.EnoInstallAgentRes;
 import com.isxcode.star.api.pojos.engine.node.res.EnoQueryNodeRes;
-import com.isxcode.star.api.pojos.engine.node.res.EnoRemoveAgentRes;
 import com.isxcode.star.backend.module.cluster.node.service.ClusterNodeBizService;
 import com.isxcode.star.api.response.SuccessResponse;
 import javax.validation.Valid;
@@ -70,29 +67,47 @@ public class ClusterNodeController {
   }
 
   @UserLog
-  @Operation(summary = "检查代理接口")
+  @Operation(summary = "检测节点接口")
   @GetMapping("/checkAgent")
-  @SuccessResponse("检测完成")
-  public EnoCheckAgentRes checkAgent(@Schema(description = "引擎节点唯一id", example = "sy_aaa9440040aa455d84c17f96d8cd7844") @RequestParam String engineNodeId) {
+  @SuccessResponse("开始检测")
+  public void checkAgent(@Schema(description = "引擎节点唯一id", example = "sy_aaa9440040aa455d84c17f96d8cd7844") @RequestParam String engineNodeId) {
 
-    return engineNodeBizService.checkAgent(engineNodeId);
+    engineNodeBizService.checkAgent(engineNodeId);
   }
 
   @UserLog
-  @Operation(summary = "安装代理接口")
+  @Operation(summary = "安装节点接口")
   @GetMapping("/installAgent")
-  @SuccessResponse("安装完成")
-  public EnoInstallAgentRes installAgent(@Schema(description = "引擎节点唯一id", example = "sy_aaa9440040aa455d84c17f96d8cd7844") @RequestParam String engineNodeId) {
+  @SuccessResponse("开始安装")
+  public void installAgent(@Schema(description = "引擎节点唯一id", example = "sy_aaa9440040aa455d84c17f96d8cd7844") @RequestParam String engineNodeId) {
 
-    return engineNodeBizService.installAgent(engineNodeId);
+    engineNodeBizService.installAgent(engineNodeId);
+  }
+
+  @UserLog
+  @Operation(summary = "停止节点接口")
+  @GetMapping("/stopAgent")
+  @SuccessResponse("停止中")
+  public void stopAgent(@Schema(description = "引擎节点唯一id", example = "sy_aaa9440040aa455d84c17f96d8cd7844") @RequestParam String engineNodeId) {
+
+    engineNodeBizService.stopAgent(engineNodeId);
+  }
+
+  @UserLog
+  @Operation(summary = "激活节点接口")
+  @GetMapping("/startAgent")
+  @SuccessResponse("激活中")
+  public void startAgent(@Schema(description = "引擎节点唯一id", example = "sy_aaa9440040aa455d84c17f96d8cd7844") @RequestParam String engineNodeId) {
+
+    engineNodeBizService.startAgent(engineNodeId);
   }
 
   @UserLog
   @Operation(summary = "卸载代理接口")
   @GetMapping("/removeAgent")
-  @SuccessResponse("卸载完成")
-  public EnoRemoveAgentRes removeAgent(@Schema(description = "引擎节点唯一id", example = "sy_aaa9440040aa455d84c17f96d8cd7844") @RequestParam String engineNodeId) {
+  @SuccessResponse("卸载中")
+  public void removeAgent(@Schema(description = "引擎节点唯一id", example = "sy_aaa9440040aa455d84c17f96d8cd7844") @RequestParam String engineNodeId) {
 
-    return engineNodeBizService.removeAgent(engineNodeId);
+    engineNodeBizService.removeAgent(engineNodeId);
   }
 }

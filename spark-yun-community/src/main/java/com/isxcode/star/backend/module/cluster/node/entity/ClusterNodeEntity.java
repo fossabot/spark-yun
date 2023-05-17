@@ -26,7 +26,7 @@ import static com.isxcode.star.backend.config.WebSecurityConfig.TENANT_ID;
 @Data
 @Entity
 @SQLDelete(
-  sql = "UPDATE SY_CLUSTER_NODE SET deleted = 1 WHERE id = ? and version_number = ?"
+  sql = "UPDATE SY_CLUSTER_NODE SET deleted = 1 WHERE id = ?"
 )
 @Where(clause = "deleted = 0 ${TENANT_FILTER} ")
 @Table(name = "SY_CLUSTER_NODE")
@@ -57,7 +57,7 @@ public class ClusterNodeEntity {
 
   private Double usedStorage;
 
-  private String cpuPercent;
+  private Double cpuPercent;
 
   private String clusterId;
 
@@ -75,6 +75,8 @@ public class ClusterNodeEntity {
 
   private String hadoopHomePath;
 
+  private String agentLog;
+
   @CreatedDate
   private LocalDateTime createDateTime;
 
@@ -86,9 +88,6 @@ public class ClusterNodeEntity {
 
   @LastModifiedBy
   private String lastModifiedBy;
-
-  @Version
-  private Long versionNumber;
 
   @Transient
   private Integer deleted;
