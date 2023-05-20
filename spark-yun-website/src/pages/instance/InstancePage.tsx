@@ -64,13 +64,13 @@ function InstancePage() {
       ellipsis: true,
       width: 120
     },
-    {
-      title: '作业流',
-      key: 'workflowName',
-      dataIndex: 'workflowName',
-      ellipsis: true,
-      width: 120
-    },
+    // {
+    //   title: '作业流',
+    //   key: 'workflowName',
+    //   dataIndex: 'workflowName',
+    //   ellipsis: true,
+    //   width: 120
+    // },
     {
       title: '作业',
       key: 'workName',
@@ -85,7 +85,7 @@ function InstancePage() {
       width: 80,
       render: (_, record) => (
         <Space size="middle">
-          {record.instanceType === 'WORK' && <Tag>作业</Tag>}
+          {record.instanceType === 'WORK' && <Tag>调度执行</Tag>}
           {record.instanceType === 'MANUAL' && <Tag>手动执行</Tag>}
         </Space>
       )
@@ -131,11 +131,14 @@ function InstancePage() {
           <a className={'sy-table-a'} onClick={() => {}}>
             重跑
           </a>
+          {/*<a className={'sy-table-a'} onClick={() => {}}>*/}
+          {/*  中止*/}
+          {/*</a>*/}
           <a className={'sy-table-a'} onClick={() => {}}>
             日志
           </a>
           <a className={'sy-table-a'} onClick={() => {}}>
-            数据
+            结果
           </a>
           <a
             className={'sy-table-a'}
