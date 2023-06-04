@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+
 @Tag(name = "代理模块")
 @RequestMapping(ModulePrefix.YUN_AGENT)
 @RestController
@@ -29,7 +31,7 @@ public class YunAgentController {
   @Operation(summary = "提交作业接口", description = "执行作业，将作业通过代理提交给yarn处理")
   @PostMapping("/executeWork")
   @SuccessResponse("提交成功")
-  public YagExecuteWorkRes executeWork(@Valid @RequestBody YagExecuteWorkReq yagExecuteWorkReq) {
+  public YagExecuteWorkRes executeWork(@Valid @RequestBody YagExecuteWorkReq yagExecuteWorkReq) throws IOException {
 
     return yunAgentBizService.executeWork(yagExecuteWorkReq);
   }
