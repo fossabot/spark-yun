@@ -13,8 +13,6 @@ import com.isxcode.star.yun.agent.service.StandaloneAgentService;
 import com.isxcode.star.yun.agent.service.YarnAgentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.yarn.client.api.YarnClient;
-import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
@@ -24,7 +22,6 @@ import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
-import org.apache.logging.log4j.util.Strings;
 import org.apache.spark.launcher.SparkLauncher;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -36,9 +33,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static com.isxcode.star.yarn.utils.YarnUtils.formatApplicationId;
-import static com.isxcode.star.yarn.utils.YarnUtils.initYarnClient;
 
 /**
  * 代理服务层.
@@ -65,11 +59,11 @@ public class YunAgentBizService {
         break;
       case AgentType.K8S:
         sparkLauncher = kubernetesAgentService.genSparkLauncher(yagExecuteWorkReq.getPluginReq(), yagExecuteWorkReq.getSparkSubmit(), yagExecuteWorkReq.getAgentHomePath());
-        appId = yarnAgentService.executeWork(sparkLauncher);
+        appId = kubernetesAgentService.executeWork(sparkLauncher);
         break;
       case AgentType.StandAlone:
         sparkLauncher = standaloneAgentService.genSparkLauncher(yagExecuteWorkReq.getPluginReq(), yagExecuteWorkReq.getSparkSubmit(), yagExecuteWorkReq.getAgentHomePath());
-        appId = yarnAgentService.executeWork(sparkLauncher);
+        appId = standaloneAgentService.executeWork(sparkLauncher);
         break;
       default:
         throw new SparkYunException("agent类型不支持");
@@ -106,7 +100,7 @@ public class YunAgentBizService {
         appLog = yarnAgentService.getAppLog(appId);
         break;
       case AgentType.K8S:
-        appLog = String.valueOf(kubernetesAgentService.getAppLog(appId));
+        appLog = kubernetesAgentService.getAppLog(appId);
         break;
       case AgentType.StandAlone:
         appLog = standaloneAgentService.getAppLog(appId);
