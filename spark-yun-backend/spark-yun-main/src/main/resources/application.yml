@@ -10,7 +10,17 @@ server:
 spring:
 
   profiles:
-    active: local
+    active: h2
+
+  security:
+    user:
+      roles: ADMIN
+
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+      enabled: true
 
   security:
     user:
